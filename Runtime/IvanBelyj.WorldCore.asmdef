@@ -1,0 +1,16 @@
+{
+    "name": "IvanBelyj.WorldCore",
+    "rootNamespace": "",
+    "references": [
+        "GUID:cc5c31e37fc376a4aab5c9833f04870e"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

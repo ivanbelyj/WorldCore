@@ -1,0 +1,73 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: afbc45cb41cf4c640a366c27c6f9693a, type: 3}
+  m_Name: TemperateDecidousForest
+  m_EditorClassIdentifier: 
+  biomeId: 7
+  groupColor: {r: 0.11764706, g: 0.7254902, b: 0.32941177, a: 1}
+  radiationMin: 0
+  radiationMax: 1
+  varietyMin: 0
+  varietyMax: 1
+  trees:
+  - tree: {fileID: 11400000, guid: 01b0efc3f1a995d46862b9d957a51824, type: 2}
+    prevalence: 0
+  - tree: {fileID: 11400000, guid: a9e4ef3e70937294ab22dec22f233a72, type: 2}
+    prevalence: 3
+  - tree: {fileID: 11400000, guid: dc772365f9672f64b8a373e120a21e2c, type: 2}
+    prevalence: 0.2
+  treesDensity: 0.7
+  layerSettings:
+  - enabled: 1
+    layer: {fileID: 8574412962073106934, guid: 685e12f84592f5f47bcff19133fc6e12, type: 2}
+    modifierStack: []
+  biomeDetails:
+  - terrainDetail: {fileID: 11400000, guid: 3154e2b867260d543852ab0b32f88964, type: 2}
+    dryColor: {r: 1, g: 0.79607844, b: 0, a: 1}
+    healthyColor: {r: 1, g: 1, b: 1, a: 1}
+    sizeMultiplier: 1
+    noiseSpread: 1
+    holeEdgePadding: 0
+    placingMode: 0
+    threshold: 0.905
+    rarity: 1
+    densityMultiplier: 1
+  - terrainDetail: {fileID: 11400000, guid: 315fed44e73a4984c8940cf23a5f4fff, type: 2}
+    dryColor: {r: 1, g: 0.79607844, b: 0, a: 1}
+    healthyColor: {r: 1, g: 1, b: 1, a: 1}
+    sizeMultiplier: 1
+    noiseSpread: 1
+    holeEdgePadding: 0
+    placingMode: 0
+    threshold: 0.779
+    rarity: 10
+    densityMultiplier: 1
+  - terrainDetail: {fileID: 11400000, guid: 925dd8d9984521f4bb3bd2f02fb06d8c, type: 2}
+    dryColor: {r: 1, g: 0.79607844, b: 0, a: 1}
+    healthyColor: {r: 1, g: 1, b: 1, a: 1}
+    sizeMultiplier: 1
+    noiseSpread: 1
+    holeEdgePadding: 0
+    placingMode: 0
+    threshold: 0.388
+    rarity: 1000
+    densityMultiplier: 1
+  - terrainDetail: {fileID: 11400000, guid: 2188f902f4a3b074b988b93d20432ed8, type: 2}
+    dryColor: {r: 1, g: 0.79607844, b: 0, a: 1}
+    healthyColor: {r: 1, g: 1, b: 1, a: 1}
+    sizeMultiplier: 1
+    noiseSpread: 1
+    holeEdgePadding: 0
+    placingMode: 0
+    threshold: 0.589
+    rarity: 1000
+    densityMultiplier: 1
