@@ -5,10 +5,16 @@ using UnityEngine;
 /// </summary>
 public static class NoiseMapUtils
 {
-
     public static float[,] GenerateNoiseMap(
-        NoiseData noiseData, int seed,
-        int width, int height, Vector2 offset, float scaleMultiplier = 1f) {
+        NoiseData noiseData,
+        int seed,
+        int width,
+        int height,
+        Vector2 offset,
+        float scaleMultiplier = 1f,
+        float minValue = 0f,
+        float maxValue = 1f)
+    {
         const float EPS = 1e-6f;
 
         float[,] noiseMap = new float[height, width];
@@ -18,7 +24,8 @@ public static class NoiseMapUtils
 
         FastNoiseLite fastNoiseLite;
 
-        switch (noiseData.NoiseType) {
+        switch (noiseData.NoiseType)
+        {
             case NoiseType.Simplex:
                 fastNoiseLite = Simplex(noiseData);
                 break;
@@ -48,15 +55,25 @@ public static class NoiseMapUtils
                 float noiseVal = To01(generatedVal);
 
                 // Перераспределение
-                if (Mathf.Abs(noiseData.RedistributionExtent - 1f) < EPS) {
+                if (Mathf.Abs(noiseData.RedistributionExtent - 1f) < EPS)
+                {
                     // Перераспределение не требуется
-                } else if (Mathf.Abs(noiseData.RedistributionExtent - 2f) < EPS) {
+                }
+                else if (Mathf.Abs(noiseData.RedistributionExtent - 2f) < EPS)
+                {
                     noiseVal = noiseVal * noiseVal;
-                } else if (Mathf.Abs(noiseData.RedistributionExtent - 3f) < EPS) {
+                }
+                else if (Mathf.Abs(noiseData.RedistributionExtent - 3f) < EPS)
+                {
                     noiseVal = noiseVal * noiseVal * noiseVal;
-                } else {
+                }
+                else
+                {
                     noiseVal = Mathf.Pow(noiseVal, noiseData.RedistributionExtent);
                 }
+
+                noiseVal = Remap(noiseVal, 0f, 1f, minValue, maxValue);
+
                 noiseMap[y, x] = noiseVal;
             }
         }
@@ -64,7 +81,8 @@ public static class NoiseMapUtils
         return noiseMap;
     }
 
-    private static FastNoiseLite Cellular(NoiseData noiseData, int seed) {
+    private static FastNoiseLite Cellular(NoiseData noiseData, int seed)
+    {
         FastNoiseLite noise = new FastNoiseLite();
         noise.SetNoiseType(FastNoiseLite.NoiseType.Cellular);
         noise.SetSeed(seed);
@@ -82,7 +100,8 @@ public static class NoiseMapUtils
         return noise;
     }
 
-    private static FastNoiseLite Simplex(NoiseData noiseData) {
+    private static FastNoiseLite Simplex(NoiseData noiseData)
+    {
         FastNoiseLite noise = new FastNoiseLite();
         noise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
         noise.SetFractalType(FastNoiseLite.FractalType.FBm);
@@ -93,7 +112,8 @@ public static class NoiseMapUtils
     }
 
     // Не тестировано
-    private static FastNoiseLite Perlin(NoiseData noiseData) {
+    private static FastNoiseLite Perlin(NoiseData noiseData)
+    {
         FastNoiseLite noise = new FastNoiseLite();
         noise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
         noise.SetFractalType(FastNoiseLite.FractalType.FBm);
@@ -103,14 +123,27 @@ public static class NoiseMapUtils
         return noise;
     }
 
-    private static FastNoiseLite Ridged(NoiseData noiseData) {
+    private static FastNoiseLite Ridged(NoiseData noiseData)
+    {
         var res = Simplex(noiseData);
         res.SetFractalType(FastNoiseLite.FractalType.Ridged);
         return res;
     }
 
     // [-1; 1] -> [0; 1]
-    private static float To01(float val) {
+    private static float To01(float val)
+    {
         return (val + 1) / 2;
+    }
+
+    // For example, [-1; 1] -> [0; 1]
+    private static float Remap(
+        float value,
+        float fromMin,
+        float fromMax,
+        float toMin,
+        float toMax)
+    {
+        return toMin + (value - fromMin) * (toMax - toMin) / (fromMax - fromMin);
     }
 }

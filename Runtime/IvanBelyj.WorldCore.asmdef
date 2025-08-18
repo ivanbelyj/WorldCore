@@ -2,7 +2,8 @@
     "name": "IvanBelyj.WorldCore",
     "rootNamespace": "",
     "references": [
-        "GUID:cc5c31e37fc376a4aab5c9833f04870e"
+        "GUID:cc5c31e37fc376a4aab5c9833f04870e",
+        "GUID:23c5eafd234b88744aaaa07b22801cd3"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,10 +1,13 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 
 public class DebugSpritesBuilder : GenerationStage
 {
+    private const float OffsetStep = 5f;
+
     [SerializeField]
     private GameObject mapPrefab;
 
@@ -14,7 +17,29 @@ public class DebugSpritesBuilder : GenerationStage
     [SerializeField]
     private uint biomeIdToDisplayMaskForTest;
 
+    private Color[] regionColors;
+    private Color[] regionZoneColors;
     private GameObject noiseMapsParent;
+
+    private readonly struct MapConfig
+    {
+        public readonly string Name;
+        public readonly Func<ChunkData, Color[]> GenerateColorMap;
+        public readonly Color DefaultColor;
+        public readonly Func<ChunkData, bool> ShouldGenerate;
+
+        public MapConfig(
+            string name,
+            Func<ChunkData, Color[]> generateColorMap,
+            Color defaultColor,
+            Func<ChunkData, bool> shouldGenerate = null)
+        {
+            Name = name;
+            GenerateColorMap = generateColorMap;
+            DefaultColor = defaultColor;
+            ShouldGenerate = shouldGenerate ?? (_ => true);
+        }
+    }
 
     public override void Initialize(WorldGenerationData worldGenerationData)
     {
@@ -24,94 +49,199 @@ public class DebugSpritesBuilder : GenerationStage
 
     protected override Task<ChunkData> ProcessChunkImplAsync(ChunkData chunkData)
     {
+        regionColors = configurationProvider
+            .GetRegionSchemas()
+            .Select(x => x.debugColor)
+            .ToArray();
+
+        regionZoneColors = chunkData.HeightmapComponentsMapping
+            ?.Select(x => x.debugColor)
+            ?.ToArray() ?? Array.Empty<Color>();
+
         CreateSpriteMaps(chunkData);
         return Task.FromResult(chunkData);
     }
 
-    private void CreateSpriteMaps(ChunkData chunkData) {
-        List<(Color, float[,])> colorsAndMaps = new List<(Color, float[,])>() {
-            (Color.white, chunkData.TerrainData
-                .GetHeights(0, 0, worldData.ChunkResolution, worldData.ChunkResolution)),
-            (Color.red, chunkData.Temperature),
-            (Color.cyan, chunkData.Moisture),
-            (Color.yellow, chunkData.Radiation),
-            (Color.magenta, chunkData.Variety),
-            
-        };
-        float offset = 0;
-        const float OFFSET_STEP = 5f;
-
-        // Отображение карты высот, температуры, влажности, радиации...
-        foreach (var colorAndMap in colorsAndMaps) {
-            Color[] colorMap = NoiseMapToTextureUtils.NoiseMapToColorMap(colorAndMap.Item2);
-            CreateSpriteMap(chunkData, colorMap, NextOffset(), colorAndMap.Item1);
-        }
-
-        // Отображение карты биомов
-        Color[] biomesColorMap = BiomesMapToColorMap(chunkData.BiomeIds, chunkData.Variety);
-        CreateSpriteMap(chunkData, biomesColorMap, NextOffset());
-
-        // Отображение маски одного из биомов (для теста)
-        if (chunkData.BiomeMaskById.ContainsKey(biomeIdToDisplayMaskForTest)) {
-            
-            float[,] biomeMask = chunkData.BiomeMaskById[biomeIdToDisplayMaskForTest];
-            
-            Color[] biomeMaskColors = NoiseMapToTextureUtils.NoiseMapToColorMap(biomeMask);
-            CreateSpriteMap(chunkData, biomeMaskColors, NextOffset(), Color.white);
-        }
-
-        // Интерполированная маска биома
-        // float[,] interpolatedMask = chunkData.InterpolatedBiomeMask;
-        
-        // if (interpolatedMask != null) {
-        //     Color[] interpolatedColors = NoiseMapToTextureUtils.NoiseMapToColorMap(interpolatedMask);
-        //     CreateSpriteMap(chunkData, interpolatedColors, NextOffset(), Color.white);
-        // }
-        
-
-        float NextOffset() {
-            return offset += OFFSET_STEP;
-        }
-    }
-
-    private Color[] BiomesMapToColorMap(uint[,] biomesMap, float[,] variety) {
-        int width = biomesMap.GetLength(1);
-        int height = biomesMap.GetLength(0);
-        Color[] res = new Color[width * height];
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                Biome biome = biomesManager.GetBiomeById(biomesMap[y, x]);
-                // res[y * width + x] = Color.Lerp(Color.black, biome.GroupColor,
-                //     variety[y, x]);
-                res[y * width + x] = biome.GroupColor;
+    private void CreateSpriteMaps(ChunkData chunkData)
+    {
+        float offset = 0f;
+        foreach (var config in GetMapConfigs())
+        {
+            if (config.ShouldGenerate(chunkData))
+            {
+                Color[] colorMap = config.GenerateColorMap(chunkData);
+                if (colorMap != null)
+                {
+                    CreateSpriteMap(chunkData, colorMap, config.Name, offset, config.DefaultColor);
+                    offset += OffsetStep;
+                }
             }
         }
-        return res;
     }
 
-    private void CreateSpriteMap(ChunkData chunkData, Color[] colorMap, float zOffset = 0,
-        Color color = default) {
-        if (color == default) {
-            color = Color.white;
+    private IEnumerable<MapConfig> GetMapConfigs()
+    {
+        return new[]
+        {
+            new MapConfig(
+                "Heightmap",
+                chunk => NoiseMapToTextureUtils.NoiseMapToColorMap(
+                    chunk.TerrainData.GetHeights(0, 0, worldData.ChunkResolution, worldData.ChunkResolution)),
+                Color.white,
+                chunk => chunk.TerrainData != null),
+            new MapConfig(
+                "Temperature",
+                chunk => NoiseMapToTextureUtils.NoiseMapToColorMap(chunk.Temperature),
+                Color.red,
+                chunk => chunk.Temperature != null),
+            new MapConfig(
+                "Moisture",
+                chunk => NoiseMapToTextureUtils.NoiseMapToColorMap(chunk.Moisture),
+                Color.cyan,
+                chunk => chunk.Moisture != null),
+            new MapConfig(
+                "Radiation",
+                chunk => NoiseMapToTextureUtils.NoiseMapToColorMap(chunk.Radiation),
+                Color.yellow,
+                chunk => chunk.Radiation != null),
+            new MapConfig(
+                "Variety",
+                chunk => NoiseMapToTextureUtils.NoiseMapToColorMap(chunk.Variety),
+                Color.magenta,
+                chunk => chunk.Variety != null),
+            new MapConfig(
+                "Biomes",
+                chunk => GenerateBiomesColorMap(chunk.BiomeIds, chunk.Variety),
+                Color.white,
+                chunk => chunk.BiomeMaskById != null && chunk.BiomeMaskById.Count > 0),
+            new MapConfig(
+                "BiomeMask",
+                chunk => NoiseMapToTextureUtils.NoiseMapToColorMap(chunk.BiomeMaskById[biomeIdToDisplayMaskForTest]),
+                Color.white,
+                chunk => chunk.BiomeMaskById != null && chunk.BiomeMaskById.ContainsKey(biomeIdToDisplayMaskForTest)),
+            new MapConfig(
+                "Regions",
+                chunk => GenerateCombinedRegionColorMap(chunk.WeightsByHeightmapRegion),
+                Color.white,
+                chunk => chunk.WeightsByHeightmapRegion != null && chunk.WeightsByHeightmapRegion.Length > 0),
+            new MapConfig(
+                "RegionZones",
+                chunk => GenerateCombinedComponentColorMap(chunk.WeightsByHeightmapComponent),
+                Color.white,
+                chunk => chunk.WeightsByHeightmapComponent != null && chunk.WeightsByHeightmapComponent.Length > 0)
+        };
+    }
+
+    private Color[] GenerateCombinedRegionColorMap(float[][,] weightsByWorldRegion)
+    {
+        if (weightsByWorldRegion == null || weightsByWorldRegion.Length == 0)
+            return null;
+
+        return GenerateWeightedColorMap(
+            weightsByWorldRegion,
+            (width, height) => new Color[width * height],
+            GetRegionColor);
+    }
+
+    private Color[] GenerateCombinedComponentColorMap(float[][,] weightsByComponent)
+    {
+        if (weightsByComponent == null || weightsByComponent.Length == 0)
+            return null;
+
+        return GenerateWeightedColorMap(
+            weightsByComponent,
+            (width, height) => new Color[width * height],
+            GetComponentColor);
+    }
+
+    private Color[] GenerateWeightedColorMap(
+        float[][,] weights,
+        Func<int, int, Color[]> createColorMap,
+        Func<int, Color> getColor)
+    {
+        int width = weights[0].GetLength(1);
+        int height = weights[0].GetLength(0);
+        Color[] colorMap = createColorMap(width, height);
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float sum = 0f;
+                float r = 0f, g = 0f, b = 0f;
+
+                for (int i = 0; i < weights.Length; i++)
+                {
+                    float weight = weights[i][y, x];
+                    sum += weight;
+                    Color color = getColor(i);
+                    r += weight * color.r;
+                    g += weight * color.g;
+                    b += weight * color.b;
+                }
+
+                colorMap[y * width + x] = Mathf.Abs(sum - 1f) > 0.0001f
+                    ? Color.white // Highlight normalization errors
+                    : new Color(r, g, b);
+            }
         }
-        
-        Texture2D noiseTexture = NoiseMapToTextureUtils.ColorMapToTexture(
+
+        return colorMap;
+    }
+
+    private Color[] GenerateBiomesColorMap(uint[,] biomesMap, float[,] variety)
+    {
+        if (biomesMap == null)
+            return null;
+
+        int width = biomesMap.GetLength(1);
+        int height = biomesMap.GetLength(0);
+        Color[] colorMap = new Color[width * height];
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                Biome biome = biomesManager.GetBiomeById(biomesMap[y, x]);
+                colorMap[y * width + x] = biome.GroupColor;
+            }
+        }
+        return colorMap;
+    }
+
+    private void CreateSpriteMap(ChunkData chunkData, Color[] colorMap, string mapName, float zOffset, Color defaultColor = default)
+    {
+        if (colorMap == null)
+        {
+            Debug.LogWarning($"Color map for {mapName} is null");
+            return;
+        }
+
+        Texture2D texture = NoiseMapToTextureUtils.ColorMapToTexture(
             worldData.ChunkResolution, worldData.ChunkResolution, colorMap);
 
-        int mapSize = worldData.ChunkResolution;
-        
-        ChunkPosition cPos = chunkData.ChunkPosition;
-        Vector3 pos = worldData.ChunkSize / 100f * new Vector3(cPos.X, cPos.Z, zOffset);
-        
-        GameObject spriteGO = Instantiate(mapPrefab, pos, Quaternion.identity);
-        spriteGO.transform.SetParent(noiseMapsParent.transform);
+        Vector3 position = worldData.ChunkSize / 100f * new Vector3(
+            chunkData.ChunkPosition.X,
+            chunkData.ChunkPosition.Z,
+            zOffset);
+
+        GameObject spriteGO = Instantiate(mapPrefab, position, Quaternion.identity, noiseMapsParent.transform);
+        spriteGO.name = $"Map_{mapName}_{chunkData.ChunkPosition}";
 
         var noiseRenderer = spriteGO.GetComponent<NoiseMapRenderer>();
-        
-        noiseRenderer.RenderMap(mapSize, mapSize,
-            colorMap);
+        noiseRenderer.RenderMap(worldData.ChunkResolution, worldData.ChunkResolution, colorMap);
 
         var spriteRenderer = spriteGO.GetComponent<SpriteRenderer>();
-        spriteRenderer.color = color;
+        spriteRenderer.color = defaultColor == default ? Color.white : defaultColor;
+    }
+
+    private Color GetRegionColor(int regionIndex)
+    {
+        return regionIndex < regionColors.Length ? regionColors[regionIndex] : Color.gray;
+    }
+
+    private Color GetComponentColor(int componentIndex)
+    {
+        return componentIndex < regionZoneColors.Length ? regionZoneColors[componentIndex] : Color.gray;
     }
 }

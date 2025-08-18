@@ -9,6 +9,9 @@ using UnityEngine;
 /// </summary>
 public class ChunkData
 {
+    public float[][,] WeightsByHeightmapRegion { get; set; }
+    public float[][,] WeightsByHeightmapComponent { get; set; }
+    public HeightmapRegionZoneGenerationSchema[] HeightmapComponentsMapping { get; set; }
     public TerrainData TerrainData { get; set; }
     public ChunkPosition ChunkPosition { get; set; }
     public float[,] Temperature { get; set; }
@@ -38,7 +41,8 @@ public class ChunkData
 
     public Terrain Terrain { get; set; }
 
-    public ChunkData() {
-        
+    public ChunkData()
+    {
+
     }
 }
